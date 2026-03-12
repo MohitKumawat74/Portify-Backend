@@ -1,0 +1,126 @@
+{
+  "info": {
+    "name": "Portfolio Backend API",
+    "_postman_id": "",
+    "description": "Auto-generated Postman collection from api document.md",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "token", "value": "" },
+    { "key": "refreshToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{ \"name\": \"John\", \"email\": \"john@example.com\", \"password\": \"secret123\" }" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register" }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{ \"email\": \"john@example.com\", \"password\": \"secret123\" }" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login" }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{ \"refreshToken\": \"{{refreshToken}}\" }" },
+            "url": { "raw": "{{baseUrl}}/api/auth/refresh" }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "body": { "mode": "raw", "raw": "{ \"refreshToken\": \"{{refreshToken}}\" }" },
+            "url": { "raw": "{{baseUrl}}/api/auth/logout" }
+          }
+        },
+        {
+          "name": "Profile",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": { "raw": "{{baseUrl}}/api/auth/profile" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": { "raw": "{{baseUrl}}/api/users" }
+          }
+        },
+        {
+          "name": "Get User",
+          "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ], "url": { "raw": "{{baseUrl}}/api/users/:id" } }
+        },
+        {
+          "name": "Update User",
+          "request": { "method": "PUT", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" } ], "body": { "mode": "raw", "raw": "{ \"name\": \"New Name\" }" }, "url": { "raw": "{{baseUrl}}/api/users/:id" } }
+        },
+        {
+          "name": "Delete User",
+          "request": { "method": "DELETE", "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ], "url": { "raw": "{{baseUrl}}/api/users/:id" } }
+        }
+      ]
+    },
+    {
+      "name": "Portfolios",
+      "item": [
+        { "name": "Public - Get By Slug", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/portfolios/public/:slug" } } },
+        { "name": "List Portfolios", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ], "url": { "raw": "{{baseUrl}}/api/portfolios" } } },
+        { "name": "Create Portfolio", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" } ], "body": { "mode": "raw", "raw": "{ \"title\": \"My Portfolio\", \"bio\": \"Short bio\" }" }, "url": { "raw": "{{baseUrl}}/api/portfolios" } } },
+        { "name": "Get Portfolio", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ], "url": { "raw": "{{baseUrl}}/api/portfolios/:id" } } },
+        { "name": "Update Portfolio", "request": { "method": "PUT", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" } ], "body": { "mode": "raw", "raw": "{ \"title\": \"Updated Title\" }" }, "url": { "raw": "{{baseUrl}}/api/portfolios/:id" } } },
+        { "name": "Delete Portfolio", "request": { "method": "DELETE", "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ], "url": { "raw": "{{baseUrl}}/api/portfolios/:id" } } }
+      ]
+    },
+    {
+      "name": "Templates",
+      "item": [
+        { "name": "List Templates", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/templates" } } },
+        { "name": "Get Template", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/templates/:id" } } }
+      ]
+    },
+    {
+      "name": "Plans & Subscriptions",
+      "item": [
+        { "name": "Get Plans", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/plans" } } },
+        { "name": "Create Checkout", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" } ], "body": { "mode": "raw", "raw": "{ \"planId\": \"plan_123\" }" }, "url": { "raw": "{{baseUrl}}/api/subscriptions/checkout" } } }
+      ]
+    },
+    {
+      "name": "Analytics (admin)",
+      "item": [
+        { "name": "Get Admin Analytics", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ], "url": { "raw": "{{baseUrl}}/api/admin/analytics" } } }
+      ]
+    },
+    {
+      "name": "Contact",
+      "item": [
+        { "name": "Send Contact Message", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "body": { "mode": "raw", "raw": "{ \"name\": \"Jane\", \"email\": \"jane@example.com\", \"subject\": \"Hi\", \"message\": \"Hello\" }" }, "url": { "raw": "{{baseUrl}}/api/contact" } } }
+      ]
+    }
+  ]
+}
