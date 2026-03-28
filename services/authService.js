@@ -1,97 +1,152 @@
 const crypto = require('crypto');
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const ApiError = require('../utils/apiError');
+const {
+  ensureJwtSecrets,
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+  hashRefreshToken,
+} = require('../utils/token');
 
-const generateToken = (userId) => {
-  return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '15m',
-  });
+const MAX_REFRESH_TOKENS_PER_USER = 5;
+const REFRESH_TOKEN_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+
+const toPublicUser = (user) => {
+  if (!user) return null;
+  return {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    plan: user.plan || 'free',
+    planExpiry: user.planExpiry || null,
+    portfolioCount: user.portfolioCount || 0,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
 };
 
-const generateRefreshToken = (userId) => {
-  return jwt.sign(
-    { id: userId },
-    process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
-  );
+const addRefreshTokenToUser = (user, refreshToken) => {
+  user.pruneExpiredRefreshTokens();
+  user.refreshTokens.push({
+    tokenHash: hashRefreshToken(refreshToken),
+    expiresAt: new Date(Date.now() + REFRESH_TOKEN_LIFETIME_MS),
+  });
+
+  if (user.refreshTokens.length > MAX_REFRESH_TOKENS_PER_USER) {
+    user.refreshTokens = user.refreshTokens.slice(-MAX_REFRESH_TOKENS_PER_USER);
+  }
 };
 
 const registerUser = async ({ name, email, password }) => {
+  ensureJwtSecrets();
+
   const existingUser = await User.findOne({ email });
   if (existingUser) {
-    const error = new Error('Email is already registered.');
-    error.statusCode = 409;
-    throw error;
+    throw new ApiError(409, 'Email is already registered.', 'AUTH_CONFLICT');
   }
 
   const user = await User.create({ name, email, password });
-  const token = generateToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
 
-  user.refreshTokens = [refreshToken];
+  addRefreshTokenToUser(user, refreshToken);
   await user.save();
 
-  return { user, token, refreshToken };
+  return { user: toPublicUser(user), accessToken, refreshToken };
 };
 
 const loginUser = async ({ email, password }) => {
+  ensureJwtSecrets();
+
   const user = await User.findOne({ email });
 
   if (!user || !(await user.comparePassword(password))) {
-    const error = new Error('Invalid email or password.');
-    error.statusCode = 401;
-    throw error;
+    throw new ApiError(401, 'Invalid email or password.', 'AUTH_ERROR');
   }
 
   if (!user.isActive) {
-    const error = new Error('Your account has been deactivated. Contact support.');
-    error.statusCode = 403;
-    throw error;
+    throw new ApiError(
+      403,
+      'Your account has been deactivated. Contact support.',
+      'AUTH_FORBIDDEN'
+    );
   }
 
-  const token = generateToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
 
-  // Keep at most 5 active refresh tokens per user
-  user.refreshTokens.push(refreshToken);
-  if (user.refreshTokens.length > 5) {
-    user.refreshTokens = user.refreshTokens.slice(-5);
-  }
+  addRefreshTokenToUser(user, refreshToken);
   await user.save();
 
-  return { user, token, refreshToken };
+  return { user: toPublicUser(user), accessToken, refreshToken };
 };
 
 const refreshAccessToken = async (refreshToken) => {
-  let decoded;
+  ensureJwtSecrets();
+
+  if (!refreshToken) {
+    throw new ApiError(401, 'Refresh token is required.', 'AUTH_ERROR');
+  }
+
+  let decoded = null;
   try {
-    decoded = jwt.verify(
-      refreshToken,
-      process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET
-    );
-  } catch {
-    const error = new Error('Invalid or expired refresh token.');
-    error.statusCode = 401;
-    throw error;
+    decoded = verifyRefreshToken(refreshToken);
+  } catch (_error) {
+    throw new ApiError(401, 'Invalid or expired refresh token.', 'AUTH_ERROR');
+  }
+
+  if (decoded.tokenType !== 'refresh') {
+    throw new ApiError(401, 'Invalid token type.', 'AUTH_ERROR');
   }
 
   const user = await User.findById(decoded.id);
-  if (!user || !user.refreshTokens.includes(refreshToken)) {
-    const error = new Error('Refresh token not recognised.');
-    error.statusCode = 401;
-    throw error;
+  if (!user || !user.isActive) {
+    throw new ApiError(401, 'User not found or inactive.', 'AUTH_ERROR');
   }
 
-  const token = generateToken(user._id);
-  return { token };
+  user.pruneExpiredRefreshTokens();
+
+  const refreshTokenHash = hashRefreshToken(refreshToken);
+  if (!user.hasActiveRefreshTokenHash(refreshTokenHash)) {
+    throw new ApiError(401, 'Refresh token not recognised.', 'AUTH_ERROR');
+  }
+
+  user.refreshTokens = user.refreshTokens.filter(
+    (entry) => entry.tokenHash !== refreshTokenHash
+  );
+
+  const newRefreshToken = generateRefreshToken(user);
+  addRefreshTokenToUser(user, newRefreshToken);
+  await user.save();
+
+  return {
+    accessToken: generateAccessToken(user),
+    refreshToken: newRefreshToken,
+    user: toPublicUser(user),
+  };
 };
 
 const logoutUser = async (userId, refreshToken) => {
-  if (refreshToken) {
-    await User.findByIdAndUpdate(userId, {
-      $pull: { refreshTokens: refreshToken },
-    });
+  if (!userId) {
+    return;
   }
+
+  const user = await User.findById(userId);
+  if (!user) return;
+
+  if (!refreshToken) {
+    user.refreshTokens = [];
+    await user.save();
+    return;
+  }
+
+  const refreshTokenHash = hashRefreshToken(refreshToken);
+  user.refreshTokens = user.refreshTokens.filter(
+    (entry) => entry.tokenHash !== refreshTokenHash
+  );
+  await user.save();
 };
 
 const forgotPassword = async (email) => {
@@ -118,9 +173,7 @@ const resetPassword = async (token, newPassword) => {
   });
 
   if (!user) {
-    const error = new Error('Password reset token is invalid or has expired.');
-    error.statusCode = 400;
-    throw error;
+    throw new ApiError(400, 'Password reset token is invalid or has expired.', 'AUTH_ERROR');
   }
 
   user.password = newPassword;
@@ -137,6 +190,6 @@ module.exports = {
   logoutUser,
   forgotPassword,
   resetPassword,
-  generateToken,
+  toPublicUser,
 };
 

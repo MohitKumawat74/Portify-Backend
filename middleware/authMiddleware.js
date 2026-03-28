@@ -1,37 +1,39 @@
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const ApiError = require('../utils/apiError');
+const { verifyAccessToken } = require('../utils/token');
 
-const protect = async (req, res, next) => {
+const isAuthenticated = async (req, _res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        message: 'Not authorized. No token provided.',
-      });
+      throw new ApiError(401, 'Not authorized. No token provided.', 'AUTH_ERROR');
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const user = await User.findById(decoded.id).select('-password');
+    const decoded = verifyAccessToken(token);
+    const user = await User.findById(decoded.id).select('-password -refreshTokens');
 
     if (!user || !user.isActive) {
-      return res.status(401).json({
-        success: false,
-        message: 'Not authorized. User not found or account inactive.',
-      });
+      throw new ApiError(
+        401,
+        'Not authorized. User not found or account inactive.',
+        'AUTH_ERROR'
+      );
     }
 
     req.user = user;
-    next();
+    return next();
   } catch (error) {
-    return res.status(401).json({
-      success: false,
-      message: 'Not authorized. Token is invalid or expired.',
-    });
+    if (error.statusCode) {
+      return next(error);
+    }
+
+    return next(new ApiError(401, 'Not authorized. Token is invalid or expired.', 'AUTH_ERROR'));
   }
 };
 
-module.exports = { protect };
+module.exports = {
+  isAuthenticated,
+  protect: isAuthenticated,
+};

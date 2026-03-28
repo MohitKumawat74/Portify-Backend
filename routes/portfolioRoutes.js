@@ -12,6 +12,11 @@ const {
   getPortfolioAnalytics,
 } = require('../controllers/portfolioController');
 const { protect } = require('../middleware/authMiddleware');
+const {
+  checkPortfolioLimit,
+  checkProjectLimit,
+  checkTemplateAccess,
+} = require('../middleware/planLimitMiddleware');
 
 // Public — must be defined before /:id to avoid param capture
 router.get('/public/:slug', getBySlug);
@@ -23,13 +28,13 @@ router.use(protect);
 router.get('/', getMyPortfolios);
 
 // POST /api/portfolios
-router.post('/', create);
+router.post('/', checkPortfolioLimit, checkProjectLimit, checkTemplateAccess, create);
 
 // GET  /api/portfolios/:id
 router.get('/:id', getById);
 
 // PUT  /api/portfolios/:id
-router.put('/:id', update);
+router.put('/:id', checkProjectLimit, checkTemplateAccess, update);
 
 // DELETE /api/portfolios/:id
 router.delete('/:id', remove);

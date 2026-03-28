@@ -1,43 +1,53 @@
+const ApiError = require('../utils/apiError');
+
 const notFound = (req, res, next) => {
-  const error = new Error(`Route not found: ${req.originalUrl}`);
-  res.status(404);
-  next(error);
+  return next(new ApiError(404, `Route not found: ${req.originalUrl}`, 'NOT_FOUND'));
 };
 
-const errorHandler = (err, req, res, next) => {
-  const statusCode = err.statusCode || (res.statusCode === 200 ? 500 : res.statusCode);
+const errorHandler = (err, _req, res, _next) => {
+  let statusCode = err.statusCode || (res.statusCode === 200 ? 500 : res.statusCode);
+  let message = err.message || 'Something went wrong';
+  let errorCode = err.errorCode || 'INTERNAL_ERROR';
 
   // Mongoose duplicate key error
   if (err.code === 11000) {
     const field = Object.keys(err.keyValue)[0];
-    return res.status(409).json({
-      success: false,
-      message: `${field.charAt(0).toUpperCase() + field.slice(1)} already exists.`,
-    });
+    statusCode = 409;
+    message = `${field.charAt(0).toUpperCase() + field.slice(1)} already exists.`;
+    errorCode = 'CONFLICT_ERROR';
   }
 
   // Mongoose validation error
   if (err.name === 'ValidationError') {
     const messages = Object.values(err.errors).map((e) => e.message);
-    return res.status(400).json({ success: false, message: messages.join(', ') });
+    statusCode = 400;
+    message = messages.join(', ');
+    errorCode = 'VALIDATION_ERROR';
   }
 
   // Mongoose bad ObjectId
   if (err.name === 'CastError') {
-    return res.status(400).json({ success: false, message: 'Invalid resource ID.' });
+    statusCode = 400;
+    message = 'Invalid resource ID.';
+    errorCode = 'VALIDATION_ERROR';
   }
 
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
-    return res.status(401).json({ success: false, message: 'Invalid token.' });
+    statusCode = 401;
+    message = 'Invalid token.';
+    errorCode = 'AUTH_ERROR';
   }
   if (err.name === 'TokenExpiredError') {
-    return res.status(401).json({ success: false, message: 'Token expired.' });
+    statusCode = 401;
+    message = 'Token expired.';
+    errorCode = 'AUTH_ERROR';
   }
 
-  res.status(statusCode).json({
+  return res.status(statusCode).json({
     success: false,
-    message: err.message || 'Internal Server Error',
+    message,
+    errorCode,
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 };

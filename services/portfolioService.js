@@ -1,10 +1,17 @@
 const Portfolio = require('../models/Portfolio');
+const User = require('../models/User');
 const { generateUniqueSlug } = require('../utils/slugGenerator');
 const { recordView } = require('./analyticsService');
+
+const syncUserPortfolioCount = async (userId) => {
+  const count = await Portfolio.countDocuments({ userId });
+  await User.findByIdAndUpdate(userId, { portfolioCount: count });
+};
 
 const createPortfolio = async (userId, data) => {
   const slug = await generateUniqueSlug(data.title);
   const portfolio = await Portfolio.create({ ...data, userId, slug });
+  await syncUserPortfolioCount(userId);
   return portfolio;
 };
 
@@ -36,6 +43,7 @@ const deletePortfolio = async (portfolioId, userId) => {
     throw error;
   }
 
+  await syncUserPortfolioCount(userId);
   return portfolio;
 };
 
