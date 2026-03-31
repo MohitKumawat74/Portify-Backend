@@ -4,9 +4,20 @@ const {
   verifyWebhookSignature,
   handleWebhookEvent,
 } = require('../services/paymentService');
+const ApiError = require('../utils/apiError');
 
 const createOrder = async (req, res, next) => {
   try {
+    const { planId, billingCycle } = req.body || {};
+
+    if (planId && planId !== 'plan_pro') {
+      throw new ApiError(400, 'Only plan_pro is supported for Razorpay checkout.', 'VALIDATION_ERROR');
+    }
+
+    if (billingCycle && !['monthly', 'month'].includes(String(billingCycle).toLowerCase())) {
+      throw new ApiError(400, 'Only monthly billing cycle is supported.', 'VALIDATION_ERROR');
+    }
+
     const order = await createProOrder(req.user._id);
 
     return res.status(201).json({

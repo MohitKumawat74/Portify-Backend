@@ -3,11 +3,15 @@ const PLAN_LIMITS = {
     maxPortfolios: 1,
     maxProjects: 1,
     maxTemplates: 1,
+    maxSections: 3,
+    maxAiGenerations: 5,
   },
   pro: {
     maxPortfolios: 15,
     maxProjects: 15,
     maxTemplates: 15,
+    maxSections: 25,
+    maxAiGenerations: Number.POSITIVE_INFINITY,
   },
 };
 

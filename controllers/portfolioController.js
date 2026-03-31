@@ -1,11 +1,19 @@
 const Analytics = require('../models/Analytics');
+const { isValidObjectId } = require('mongoose');
 const {
   createPortfolio,
   updatePortfolio,
   deletePortfolio,
   getPortfolioBySlug,
+  getPublishedPortfolioByUsername,
   getUserPortfolios,
+  getPortfolioBuilderData,
   getPortfolioById,
+  savePortfolioCustomization,
+  updatePortfolioSectionContent,
+  reorderPortfolioSections,
+  addPortfolioSection,
+  removePortfolioSection,
   publishPortfolio,
   unpublishPortfolio,
 } = require('../services/portfolioService');
@@ -56,6 +64,24 @@ const getBySlug = async (req, res, next) => {
   }
 };
 
+// GET /portfolio/:username — Public render endpoint
+const getPublicByUsername = async (req, res, next) => {
+  try {
+    if (isValidObjectId(String(req.params.username || ''))) {
+      return next();
+    }
+
+    const visitorIp = req.ip || req.headers['x-forwarded-for'] || '';
+    const payload = await getPublishedPortfolioByUsername(req.params.username, visitorIp);
+    res.status(200).json({
+      success: true,
+      data: payload,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // GET /portfolios — Protected (paginated list for the authenticated user)
 const getMyPortfolios = async (req, res, next) => {
   try {
@@ -65,6 +91,23 @@ const getMyPortfolios = async (req, res, next) => {
     res.status(200).json({ data: portfolios, total, page, limit, totalPages });
   } catch (error) {
     next(error);
+  }
+};
+
+// GET /portfolio/builder — Protected
+const getBuilderData = async (req, res, next) => {
+  try {
+    const data = await getPortfolioBuilderData(req.user._id, {
+      portfolioId: req.query.portfolioId || null,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Portfolio builder data fetched',
+      data,
+    });
+  } catch (error) {
+    return next(error);
   }
 };
 
@@ -155,15 +198,92 @@ const getPortfolioAnalytics = async (req, res, next) => {
   }
 };
 
+// POST /portfolio/customize — Protected
+const customize = async (req, res, next) => {
+  try {
+    const portfolio = await savePortfolioCustomization(req.user._id, req.body || {});
+    res.status(200).json({
+      success: true,
+      message: 'Portfolio customization saved',
+      data: portfolio,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /portfolio/reorder — Protected
+const reorderSections = async (req, res, next) => {
+  try {
+    const portfolio = await reorderPortfolioSections(req.user._id, req.body || {});
+    res.status(200).json({
+      success: true,
+      message: 'Portfolio sections reordered',
+      data: portfolio,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /portfolio/section — Protected
+const addSection = async (req, res, next) => {
+  try {
+    const portfolio = await addPortfolioSection(req.user._id, req.body || {});
+    res.status(201).json({
+      success: true,
+      message: 'Portfolio section added',
+      data: portfolio,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /portfolio/section — Protected
+const updateSection = async (req, res, next) => {
+  try {
+    const portfolio = await updatePortfolioSectionContent(req.user._id, req.body || {});
+    res.status(200).json({
+      success: true,
+      message: 'Portfolio section updated',
+      data: portfolio,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /portfolio/section/:id — Protected
+const removeSection = async (req, res, next) => {
+  try {
+    const portfolio = await removePortfolioSection(req.user._id, req.params.id);
+    res.status(200).json({
+      success: true,
+      message: 'Portfolio section removed',
+      data: portfolio,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   create,
   update,
   remove,
   getBySlug,
+  getPublicByUsername,
   getMyPortfolios,
+  getBuilderData,
   getById,
   publish,
   unpublish,
+  customize,
+  reorderSections,
+  addSection,
+  updateSection,
+  removeSection,
   getPortfolioAnalytics,
 };
 
