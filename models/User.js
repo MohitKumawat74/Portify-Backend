@@ -84,6 +84,10 @@ const userSchema = new mongoose.Schema(
       razorpayOrderId: { type: String },
       razorpayPaymentId: { type: String },
     },
+    aiUsage: {
+      count: { type: Number, default: 0, min: 0 },
+      periodStart: { type: Date, default: Date.now },
+    },
   },
   { timestamps: true }
 );

@@ -105,6 +105,28 @@ User model (fields reference) — see `models/User.js`: `name`, `email`, `passwo
 
 ## Portfolios
 
+- GET /api/portfolio/:username
+	- Auth: public
+	- Params: `username` (string, normalized handle)
+	- Purpose: render-ready payload for dynamic frontend template rendering
+	- Success: 200 `{ success: true, data: { templateSlug, template, sections, customizations, metadata, diagnostics } }`
+	- Notes:
+		- Merges template config + user sections + customizations
+		- Ensures required sections (`hero`, `about`, `projects`) with fallback injection when missing
+		- Diagnostics object includes `missingSections`, `fallbackApplied`, `warnings`
+		- Uses Redis cache key format `portfolio:<username>` with 5-10 min TTL (falls back to in-memory if Redis unavailable)
+
+- GET /api/portfolio/builder
+	- Auth: protected
+	- Query: `portfolioId` (optional)
+	- Purpose: fetch builder-ready portfolio payload for drag/drop and content editing
+	- Success: 200 `{ success: true, message, data: { portfolioId, templateSlug, template, sections, customizations, metadata, diagnostics } }`
+
+- PUT /api/portfolio/section
+	- Auth: protected
+	- Body: `{ portfolioId: string, sectionId: string, content?: object, styleOverrides?: object, animation?: { type, trigger, duration, delay } }`
+	- Success: 200 `{ success: true, message: 'Portfolio section updated', data: <Portfolio> }`
+
 - GET /api/portfolios/public/:slug
 	- Auth: public
 	- Params: `slug` (string)
@@ -192,6 +214,29 @@ Portfolio model (fields) — see `models/Portfolio.js`: `title`, `slug`, `bio`, 
 - DELETE /api/templates/:id
 	- Auth: protected + adminOnly
 	- Success: 200 `{ success: true, message: 'Template deleted', data: null }`
+
+## Admin Template Builder
+
+All `/api/admin/templates` routes are protected + admin-only.
+
+- POST /api/admin/templates
+	- Body: `{ name, slug?, isPremium?, previewImage?, sections: [{ id?, type, defaultContent, defaultStyle, animation, order }], globalStyles?: { colors, fonts, spacing } }`
+	- Success: 201 `{ success: true, message: 'Template created', data: <Template> }`
+
+- PUT /api/admin/templates/:id
+	- Body: partial template fields + optional `sections` and `globalStyles`
+	- Success: 200 `{ success: true, message: 'Template updated', data: <Template> }`
+
+- PUT /api/admin/templates/reorder
+	- Body: `{ templateId: string, sections: [{ id: string, order: number }] }`
+	- Success: 200 `{ success: true, message: 'Template sections reordered', data: <Template> }`
+
+- POST /api/admin/templates/section
+	- Body: `{ templateId: string, section: { type, defaultContent, defaultStyle, animation, order } }`
+	- Success: 201 `{ success: true, message: 'Template section added', data: <Template> }`
+
+- DELETE /api/admin/templates/section/:id
+	- Success: 200 `{ success: true, message: 'Template section removed', data: <Template> }`
 
 Template model: see `models/Template.js` for fields like `name`, `description`, `sections`, `layout`, `isPremium`, `defaultTheme`.
 

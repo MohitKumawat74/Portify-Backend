@@ -9,6 +9,7 @@ const cookieParser = require('cookie-parser');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const adminTemplateRoutes = require('./routes/adminTemplateRoutes');
 const portfolioRoutes = require('./routes/portfolioRoutes');
 const templateRoutes = require('./routes/templateRoutes');
 const planRoutes = require('./routes/planRoutes');
@@ -19,6 +20,8 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const themeRoutes = require('./routes/themeRoutes');
 const contactRoutes = require('./routes/contactRoutes');
+const aiRoutes = require('./routes/aiRoutes');
+const { getPublicByUsername } = require('./controllers/portfolioController');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -182,7 +185,10 @@ app.use('/api/auth', authLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/templates', adminTemplateRoutes);
+app.get('/api/portfolio/:username', getPublicByUsername);
 app.use('/api/portfolios', portfolioRoutes);
+app.use('/api/portfolio', portfolioRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/plans', planRoutes);
 app.use('/api/plan', planManagementRoutes);
@@ -192,6 +198,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin/analytics', analyticsRoutes);
 app.use('/api/admin/themes', themeRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/ai', aiRoutes);
 
 // ─── Error Handling ───────────────────────────────────────────────────────────
 app.use(notFound);

@@ -3,9 +3,10 @@ const {
   updateTemplate,
   deleteTemplate,
   getAllTemplates,
-  getTemplateById,
+  getTemplateBySlug,
   toggleTemplate,
 } = require('../services/templateService');
+const { resolveUserPlan } = require('../config/planLimits');
 
 const create = async (req, res, next) => {
   try {
@@ -54,10 +55,11 @@ const getAll = async (req, res, next) => {
   }
 };
 
-// GET /templates/:id — Public
-const getOne = async (req, res, next) => {
+// GET /templates/:slug — Public
+const getBySlug = async (req, res, next) => {
   try {
-    const template = await getTemplateById(req.params.id);
+    const plan = req.user ? resolveUserPlan(req.user) : 'free';
+    const template = await getTemplateBySlug(req.params.slug, plan);
     res.status(200).json({ success: true, message: 'Template fetched', data: template });
   } catch (error) {
     next(error);
@@ -78,5 +80,5 @@ const toggleStatus = async (req, res, next) => {
   }
 };
 
-module.exports = { create, update, remove, getAll, getOne, toggleStatus };
+module.exports = { create, update, remove, getAll, getBySlug, toggleStatus };
 

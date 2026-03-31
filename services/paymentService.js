@@ -28,17 +28,36 @@ const createProOrder = async (userId) => {
   }
 
   const razorpay = getRazorpayClient();
-  const receipt = `pro_${userId}_${Date.now()}`;
+  // Razorpay receipt max length is 40 chars.
+  const receipt = `pro_${Date.now()}_${String(userId).slice(-8)}`;
 
-  const order = await razorpay.orders.create({
-    amount: PRO_PLAN_AMOUNT_PAISE,
-    currency: PRO_PLAN_CURRENCY,
-    receipt,
-    notes: {
-      userId: String(userId),
-      plan: 'pro',
-    },
-  });
+  let order;
+  try {
+    order = await razorpay.orders.create({
+      amount: PRO_PLAN_AMOUNT_PAISE,
+      currency: PRO_PLAN_CURRENCY,
+      receipt,
+      notes: {
+        userId: String(userId),
+        plan: 'pro',
+      },
+    });
+  } catch (error) {
+    const providerMessage =
+      error?.error?.description ||
+      error?.response?.data?.error?.description ||
+      error?.message ||
+      'Failed to create Razorpay order.';
+
+    const providerStatus = Number(error?.statusCode || error?.response?.status || 502);
+    const safeStatus = providerStatus >= 400 && providerStatus < 600 ? providerStatus : 502;
+
+    throw new ApiError(
+      safeStatus,
+      `Unable to create payment order: ${providerMessage}`,
+      'PAYMENT_ORDER_CREATE_FAILED'
+    );
+  }
 
   await Payment.create({
     userId,

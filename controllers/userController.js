@@ -9,6 +9,7 @@ const toPublicUser = (user) => {
     _id: user._id,
     name: user.name,
     email: user.email,
+    avatar: user.avatar,
     role: user.role,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
@@ -107,9 +108,87 @@ const deleteUserAdmin = async (req, res, next) => {
   }
 };
 
+const updateUserAdmin = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updates = {};
+    if (req.body.name !== undefined) updates.name = req.body.name;
+    if (req.body.avatar !== undefined) updates.avatar = req.body.avatar;
+    if (req.body.role !== undefined && ['user', 'admin'].includes(req.body.role)) updates.role = req.body.role;
+    if (req.body.isActive !== undefined) updates.isActive = Boolean(req.body.isActive);
+
+    const user = await User.findByIdAndUpdate(id, updates, { new: true, runValidators: true }).select(
+      '-password -refreshTokens'
+    );
+
+    if (!user) {
+      throw new ApiError(404, 'User not found.', 'NOT_FOUND');
+    }
+
+    return sendSuccess(res, 200, 'User updated', toPublicUser(user));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getUserByIdAdmin = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id).select('-password -refreshTokens');
+    if (!user) {
+      throw new ApiError(404, 'User not found.', 'NOT_FOUND');
+    }
+
+    return sendSuccess(res, 200, 'User fetched', toPublicUser(user));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// Protected: self or admin can fetch full profile by id
+const getUserByIdProtected = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const isAdmin = req.user && req.user.role === 'admin';
+    const isOwner = req.user && String(req.user._id) === String(id);
+
+    if (!isAdmin && !isOwner) {
+      throw new ApiError(403, 'Access denied for this resource.', 'AUTH_FORBIDDEN');
+    }
+
+    const user = await User.findById(id).select('-password -refreshTokens');
+    if (!user) {
+      throw new ApiError(404, 'User not found.', 'NOT_FOUND');
+    }
+
+    return sendSuccess(res, 200, 'User fetched', toPublicUser(user));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// Public: fetch user by id (public profile)
+const getUserByIdPublic = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id).select('name avatar');
+    if (!user) {
+      throw new ApiError(404, 'User not found.', 'NOT_FOUND');
+    }
+
+    return sendSuccess(res, 200, 'User fetched', { id: user._id, name: user.name, avatar: user.avatar });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getOwnProfile,
   updateOwnProfile,
   getAllUsersAdmin,
   deleteUserAdmin,
+  getUserByIdAdmin,
+  getUserByIdProtected,
+  getUserByIdPublic,
+  updateUserAdmin,
 };

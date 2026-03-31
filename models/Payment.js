@@ -16,9 +16,7 @@ const paymentSchema = new mongoose.Schema(
     },
     paymentId: {
       type: String,
-      default: null,
-      unique: true,
-      sparse: true,
+      default: undefined,
       trim: true,
     },
     amount: {
@@ -56,5 +54,14 @@ const paymentSchema = new mongoose.Schema(
 );
 
 paymentSchema.index({ userId: 1, createdAt: -1 });
+paymentSchema.index(
+  { paymentId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      paymentId: { $exists: true, $type: 'string' },
+    },
+  }
+);
 
 module.exports = mongoose.model('Payment', paymentSchema);
